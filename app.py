@@ -493,17 +493,6 @@ if st.sidebar.button("刷新当前用户记录", use_container_width=True):
     st.session_state.need_reload_form = True
     st.rerun()
 
-if st.sidebar.button("随机跳到未标注", use_container_width=True):
-    next_idx = get_random_unlabeled_index(
-        images,
-        st.session_state.done_names,
-    )
-
-    if next_idx is not None:
-        st.session_state.current_index = next_idx
-
-    st.session_state.need_reload_form = True
-    st.rerun()
 
 st.sidebar.markdown("---")
 show_criteria = st.sidebar.checkbox("显示分类标准", value=False)
@@ -617,12 +606,6 @@ with left:
 
 with right:
     with st.container(height=760, border=False):
-        st.markdown('<div class="section-title">导航</div>', unsafe_allow_html=True)
-
-        if st.button("随机未标注", use_container_width=True):
-            go_to_next_unlabeled(images)
-
-        st.markdown('<div class="soft-divider"></div>', unsafe_allow_html=True)
 
         st.markdown('<div class="section-title">快速判断</div>', unsafe_allow_html=True)
 

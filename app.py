@@ -17,7 +17,6 @@ CRITERIA_IMAGE = "criteria/criteria_01.png"
 
 ALLOWED_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 
-# 换成你新建的 Google Sheet ID
 GSHEET_ID = "179fyTvQAMNw3HQnCelxzlxumXknfDc6ETZzm7dvGL0U"
 
 SHEET_HEADER = [
@@ -33,6 +32,8 @@ SHEET_HEADER = [
 HAS_BAR_OPTIONS = ["yes", "no", "unclear"]
 BAR_RING_OPTIONS = ["connected", "not_connected", "unclear", "not_applicable"]
 COLOR_OPTIONS = ["same", "different", "unclear"]
+
+NOT_RING_VALUE = "not_ring"
 
 
 # ============================================================
@@ -69,50 +70,18 @@ st.markdown(
         margin-bottom: 0.35rem !important;
     }
 
-    /* 让主界面的左列固定 */
-    div[data-testid="stHorizontalBlock"]:has(.fixed-layout-marker) > div[data-testid="column"]:first-child {
-        position: sticky !important;
-        top: 0.8rem !important;
-        align-self: flex-start !important;
-        height: calc(100vh - 1.6rem) !important;
-        overflow: hidden !important;
-        z-index: 5 !important;
-    }
-
-    /* 右列单独滚动 */
-    div[data-testid="stHorizontalBlock"]:has(.fixed-layout-marker) > div[data-testid="column"]:last-child {
-        height: calc(100vh - 1.6rem) !important;
-        overflow-y: auto !important;
-        padding-right: 0.55rem !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.fixed-layout-marker) > div[data-testid="column"]:last-child::-webkit-scrollbar {
-        width: 7px;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.fixed-layout-marker) > div[data-testid="column"]:last-child::-webkit-scrollbar-thumb {
-        background: #d0d5dd;
-        border-radius: 10px;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.fixed-layout-marker) > div[data-testid="column"]:last-child::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    /* 图片显示 */
     div[data-testid="stImage"] {
         text-align: center;
     }
 
     div[data-testid="stImage"] img {
-        max-height: 62vh;
+        max-height: 68vh;
         max-width: 100%;
         object-fit: contain;
         border-radius: 12px;
         box-shadow: 0 2px 14px rgba(0, 0, 0, 0.10);
     }
 
-    /* 信息卡片 */
     .info-card {
         background: #f7f9fc;
         border: 1px solid #e3e7ef;
@@ -135,7 +104,6 @@ st.markdown(
         word-break: break-word;
     }
 
-    /* 右侧分区，不再用空 div 包 Streamlit 组件 */
     .section-title {
         font-size: 1.25rem;
         font-weight: 800;
@@ -164,7 +132,6 @@ st.markdown(
         margin: 1.0rem 0 1.0rem 0;
     }
 
-    /* radio 选项变成卡片 */
     div[role="radiogroup"] label {
         border: 1px solid rgba(49, 51, 63, 0.18);
         border-radius: 0.65rem;
@@ -383,6 +350,15 @@ def safe_choice(value, options, default="unclear"):
 
 def load_existing_to_form(existing):
     if existing:
+        old_has_bar = str(existing.get("has_bar", "")).strip()
+
+        if old_has_bar == NOT_RING_VALUE:
+            st.session_state.has_bar = "unclear"
+            st.session_state.bar_ring_connected = "not_applicable"
+            st.session_state.inner_ring_color_same = "unclear"
+            st.session_state.comment = existing.get("comment", "") or ""
+            return
+
         st.session_state.has_bar = safe_choice(
             existing.get("has_bar", ""),
             HAS_BAR_OPTIONS,
@@ -408,6 +384,19 @@ def load_existing_to_form(existing):
         st.session_state.bar_ring_connected = "unclear"
         st.session_state.inner_ring_color_same = "unclear"
         st.session_state.comment = ""
+
+
+def go_to_next_unlabeled(images):
+    next_idx = get_random_unlabeled_index(
+        images,
+        st.session_state.done_names,
+    )
+
+    if next_idx is not None:
+        st.session_state.current_index = next_idx
+
+    st.session_state.need_reload_form = True
+    st.rerun()
 
 
 # ============================================================
@@ -566,12 +555,9 @@ if show_criteria:
 # ============================================================
 # 主界面
 # ============================================================
-left, right = st.columns([3.15, 2.25], gap="large")
+left, right = st.columns([3.2, 2.2], gap="large")
 
 with left:
-    # 这个 marker 用来让 CSS 精准识别主布局
-    st.markdown('<span class="fixed-layout-marker"></span>', unsafe_allow_html=True)
-
     info1, info2, info3 = st.columns(3)
 
     with info1:
@@ -634,16 +620,27 @@ with right:
         st.markdown('<div class="section-title">导航</div>', unsafe_allow_html=True)
 
         if st.button("随机未标注", use_container_width=True):
-            next_idx = get_random_unlabeled_index(
-                images,
-                st.session_state.done_names,
+            go_to_next_unlabeled(images)
+
+        st.markdown('<div class="soft-divider"></div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="section-title">快速判断</div>', unsafe_allow_html=True)
+
+        if st.button("not_ring：不是环星系，直接下一张", use_container_width=True):
+            save_annotation(
+                user_name=user_name,
+                image_name=current_image.name,
+                has_bar=NOT_RING_VALUE,
+                bar_ring_connected="not_applicable",
+                inner_ring_color_same="not_applicable",
+                comment=st.session_state.comment,
             )
 
-            if next_idx is not None:
-                st.session_state.current_index = next_idx
+            st.session_state.last_saved_message = (
+                f"已保存：{current_image.name} | not_ring"
+            )
 
-            st.session_state.need_reload_form = True
-            st.rerun()
+            go_to_next_unlabeled(images)
 
         st.markdown('<div class="soft-divider"></div>', unsafe_allow_html=True)
 
@@ -701,7 +698,7 @@ with right:
             }.get(x, x),
         )
 
-        st.markdown("#### 备注（可以直接在这里填数字比如：）")
+        st.markdown("#### 备注")
         st.text_input("备注，可选", key="comment", label_visibility="collapsed")
 
         if st.button("保存并下一张", use_container_width=True, type="primary"):
@@ -721,16 +718,7 @@ with right:
                 f"inner_ring_color_same={st.session_state.inner_ring_color_same}"
             )
 
-            next_idx = get_random_unlabeled_index(
-                images,
-                st.session_state.done_names,
-            )
-
-            if next_idx is not None:
-                st.session_state.current_index = next_idx
-
-            st.session_state.need_reload_form = True
-            st.rerun()
+            go_to_next_unlabeled(images)
 
         st.markdown('<div class="soft-divider"></div>', unsafe_allow_html=True)
 

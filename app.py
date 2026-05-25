@@ -365,11 +365,14 @@ def load_existing_to_form(existing):
             default="unclear",
         )
 
-        st.session_state.bar_ring_connected = safe_choice(
-            existing.get("bar_ring_connected", ""),
-            BAR_RING_OPTIONS,
-            default="unclear",
-        )
+        if st.session_state.has_bar == "no":
+            st.session_state.bar_ring_connected = "not_applicable"
+        else:
+            st.session_state.bar_ring_connected = safe_choice(
+                existing.get("bar_ring_connected", ""),
+                BAR_RING_OPTIONS,
+                default="unclear",
+            )
 
         st.session_state.inner_ring_color_same = safe_choice(
             existing.get("inner_ring_color_same", ""),
@@ -646,23 +649,35 @@ with right:
             }.get(x, x),
         )
 
-        st.markdown(
-            '<div class="question-title">2. 棒和环是否相连？</div>',
-            unsafe_allow_html=True,
-        )
-        st.radio(
-            "棒和环是否相连？",
-            BAR_RING_OPTIONS,
-            key="bar_ring_connected",
-            horizontal=False,
-            label_visibility="collapsed",
-            format_func=lambda x: {
-                "connected": "connected：相连",
-                "not_connected": "not_connected：不相连",
-                "unclear": "unclear：不确定",
-                "not_applicable": "not_applicable：不适用",
-            }.get(x, x),
-        )
+        if st.session_state.has_bar == "no":
+            st.session_state.bar_ring_connected = "not_applicable"
+
+            st.markdown(
+                '<div class="question-title">2. 棒和环是否相连？</div>',
+                unsafe_allow_html=True,
+            )
+
+            st.info("第一题选择了 no：无棒，因此第二题自动记为 not_applicable。")
+
+        else:
+            st.markdown(
+                '<div class="question-title">2. 棒和环是否相连？</div>',
+                unsafe_allow_html=True,
+            )
+
+            st.radio(
+                "棒和环是否相连？",
+                BAR_RING_OPTIONS,
+                key="bar_ring_connected",
+                horizontal=False,
+                label_visibility="collapsed",
+                format_func=lambda x: {
+                    "connected": "connected：相连",
+                    "not_connected": "not_connected：不相连",
+                    "unclear": "unclear：不确定",
+                    "not_applicable": "not_applicable：不适用",
+                }.get(x, x),
+            )
 
         st.markdown(
             '<div class="question-title">3. 星系内部颜色和环的颜色是否相同？</div>',
